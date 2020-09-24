@@ -27,11 +27,13 @@ CONFIG += c++14
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-        text_editor_info.cpp
+        text_editor_info.cpp \
+        text_editor_model.cpp
 
 HEADERS += \
         mainwindow.h \
-        text_editor_info.h
+        text_editor_info.h \
+        text_editor_model.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
