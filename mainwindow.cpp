@@ -10,7 +10,7 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-{    
+{
     TextEditorModel *text_editor_model = new TextEditorModel(this);
     text_editor_model->readFilesFromDir(QCoreApplication::applicationDirPath() +
                                         "/TestFolder");

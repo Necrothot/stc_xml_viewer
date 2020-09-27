@@ -1,21 +1,26 @@
 #include "text_editor_model.h"
 
 #include <QDebug>
+#include <QVector>
 #include <QDir>
+#include <QFile>
+#include <QXmlStreamReader>
+#include <QSqlQuery>
+#include <QSqlError>
 
-const QVector<QString> header_column = {
-    "Text Editor",
-    "File Formats",
-    "Encoding",
-    "Has Intellisense",
-    "Has Plugins",
-    "Can Compile"
+const QVector<QString> column_names = {
+    "texteditor",
+    "fileformats",
+    "encoding",
+    "hasintellisense",
+    "hasplugins",
+    "cancompile"
 };
 
 TextEditorModel::TextEditorModel(QObject *parent) :
     QAbstractTableModel(parent)
 {
-
+    initDb();
 }
 
 /**
@@ -30,38 +35,55 @@ void TextEditorModel::readFilesFromDir(const QString &path)
         QDir dir(path);
 
         QFileInfoList info_list = dir.entryInfoList();
-        for (auto i = info_list.begin(); i != info_list.end(); ++i)
+        for (auto &i : info_list)
         {
-            if (i->completeSuffix() == "xml")
-            {
-                TextEditorInfo text_editor_info(i->canonicalFilePath());
-                text_editor_info_.push_back(text_editor_info);
-            }
+            if (i.completeSuffix() == "xml")
+                insertIntoDb(readXmlFile(i.canonicalFilePath()));
         }
 
     }
     catch (const std::runtime_error &e)
     {
-        qCritical("TextEditorInfo error: %s\n", e.what());
+        qWarning() << "TextEditorModel::readFilesFromDir error - " <<
+                      e.what();
     }
 }
 
 int TextEditorModel::rowCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
-    return text_editor_info_.size();
+
+    QSqlQuery query("SELECT id FROM text_editors");
+    int count = 0;
+    if (query.exec())
+    {
+        while (query.next())
+            count++;
+    }
+
+//    qDebug() << "TextEditorModel::rowCount - " << count;
+    return count;
 }
 
 int TextEditorModel::columnCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
-    return header_column.size();
+    return column_names.size();
 }
 
 QVariant TextEditorModel::headerData(int section,
                                      Qt::Orientation orientation,
                                      int role) const
 {
+    const QVector<QString> header_column = {
+        "Text Editor",
+        "File Formats",
+        "Encoding",
+        "Has Intellisense",
+        "Has Plugins",
+        "Can Compile"
+    };
+
     if (role == Qt::DisplayRole)
     {
         if (orientation == Qt::Horizontal)
@@ -80,24 +102,141 @@ QVariant TextEditorModel::headerData(int section,
 
 QVariant TextEditorModel::data(const QModelIndex &index, int role) const
 {
-    if (role == Qt::DisplayRole)
-    {
-        switch (index.column())
+    QVariant value;
+
+    if (role == Qt::DisplayRole &&
+        index.column() < column_names.size())
+    {       
+        QSqlQuery query("SELECT " +
+                        column_names[index.column()] + " " +
+                        "FROM text_editors "
+                        "WHERE id=" +
+                        QString::number(index.row() + 1));
+
+        if (query.exec())
         {
-        case 0:
-            return text_editor_info_[index.row()].textEditor();
-        case 1:
-            return text_editor_info_[index.row()].fileFormats();
-        case 2:
-            return text_editor_info_[index.row()].encoding();
-        case 3:
-            return text_editor_info_[index.row()].hasIntellisense();
-        case 4:
-            return text_editor_info_[index.row()].hasPlugins();
-        case 5:
-            return text_editor_info_[index.row()].canCompile();
+            query.first();
+            value = query.value(0).toString();
         }
     }
 
-    return QVariant();
+    return value;
+}
+
+/**
+ * @brief Read XML file
+ *
+ * @param[in] name Name of XML file
+ * @exception std::runtime_error Failed to open XML file
+ */
+TextEditorModel::ColumnValues TextEditorModel::readXmlFile(const QString &name) const
+{
+    QFile xml_file(name);
+    if (!xml_file.open(QFile::ReadOnly | QFile::Text))
+        throw std::runtime_error("Failed to open XML file");
+
+    ColumnValues column_values;
+
+    QXmlStreamReader xml_reader;
+    xml_reader.setDevice(&xml_file);
+    if (xml_reader.readNextStartElement())
+    {
+        if (xml_reader.name() != "root")
+            throw std::runtime_error("No root element");
+
+        while (xml_reader.readNextStartElement())
+        {
+            for (auto &cn: column_names)
+            {
+                if (xml_reader.name() == cn)
+                {
+                    column_values[cn] = xml_reader.readElementText();
+                    break;
+                }
+            }
+        }
+
+        if (xml_reader.hasError())
+        {
+            qDebug() << "TextEditorModel::readXmlFile error - " <<
+                        xml_reader.errorString();
+        }
+    }
+
+    return column_values;
+}
+
+bool TextEditorModel::initDb()
+{
+    const QString db_driver = "QSQLITE";
+
+    // Check SQLite driver
+    if (!QSqlDatabase::isDriverAvailable(db_driver))
+    {
+        qCritical() << "TextEditorModel::initDb error -"
+                       "No SQLite driver";
+        return false;
+    }
+
+    db_ = QSqlDatabase::addDatabase(db_driver);
+//    db_.setDatabaseName(":memory:");
+    db_.setDatabaseName("text_editors.db");
+    if (!db_.open())
+    {
+//        throw std::runtime_error("Failed to open database");
+        qCritical() << "TextEditorModel::initDb error -"
+                       "Failed to open DB file";
+        return false;
+    }
+
+    // Clean DB
+    QSqlQuery query;
+    query.prepare("DELETE FROM text_editors");
+    query.exec();
+
+    QString query_str = "CREATE TABLE IF NOT EXISTS text_editors"
+                        "("
+                        "id INTEGER PRIMARY KEY";
+    for (auto &cn: column_names)
+        query_str += "," + cn + " TEXT";
+    query_str +=        ")";
+
+    query.prepare(query_str);
+    if (!query.exec())
+    {
+        qWarning() << "TextEditorModel::initDb error - " <<
+                      query.lastError();
+        return false;
+    }
+
+    return true;
+}
+
+bool TextEditorModel::insertIntoDb(const TextEditorModel::ColumnValues &columns)
+{
+    QString query_str = "INSERT INTO text_editors"
+                        "(";
+    for (auto &cn: column_names)
+        query_str += cn + ",";
+    query_str.chop(1);  // Remove last comma
+    query_str +=        ")"
+                        "VALUES(";
+    for (int i = 0; i < column_names.size(); i++)
+        query_str +=    "?,";
+    query_str.chop(1);  // Remove last comma
+    query_str +=        ")";
+
+    QSqlQuery query(query_str);
+
+    for (auto &cn: column_names)
+        query.addBindValue(columns[cn]);
+
+    if (!query.exec())
+    {
+        qWarning() << "TextEditorModel::insertIntoDb error - " <<
+                      query.lastError().text();
+        return false;
+    }
+
+    return true;
 }

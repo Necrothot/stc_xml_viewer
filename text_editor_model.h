@@ -2,9 +2,8 @@
 #define TEXT_EDITOR_MODEL_H
 
 #include <QAbstractTableModel>
-#include <QList>
-
-#include "text_editor_info.h"
+#include <QSqlDatabase>
+#include <QMap>
 
 class TextEditorModel : public QAbstractTableModel
 {
@@ -24,7 +23,14 @@ public:
 private:
     Q_OBJECT
 
-    QList<TextEditorInfo> text_editor_info_;
+    using ColumnValues = QMap<QString, QString>;
+
+    QSqlDatabase db_;
+
+    ColumnValues readXmlFile(const QString &name) const;
+
+    bool initDb();
+    bool insertIntoDb(const ColumnValues &columns);
 
 };
 
