@@ -61,7 +61,6 @@ int TextEditorModel::rowCount(const QModelIndex &parent) const
             count++;
     }
 
-//    qDebug() << "TextEditorModel::rowCount - " << count;
     return count;
 }
 
@@ -106,7 +105,7 @@ QVariant TextEditorModel::data(const QModelIndex &index, int role) const
 
     if (role == Qt::DisplayRole &&
         index.column() < column_names.size())
-    {       
+    {
         QSqlQuery query("SELECT " +
                         column_names[index.column()] + " " +
                         "FROM text_editors "
@@ -121,6 +120,64 @@ QVariant TextEditorModel::data(const QModelIndex &index, int role) const
     }
 
     return value;
+}
+
+bool TextEditorModel::setData(const QModelIndex &index,
+                              const QVariant &value,
+                              int role)
+{
+    if (role == Qt::EditRole)
+    {
+        if (!checkIndex(index))
+            return false;
+
+        QString query_str = "UPDATE text_editors SET " +
+                            column_names[index.column()] + "='" +
+                            value.toString() + "' "
+                            "WHERE id=" +
+                            QString::number(index.row() + 1);
+
+        QSqlQuery query(query_str);
+        if (!query.exec())
+        {
+            qWarning() << "TextEditorModel::setData error - " <<
+                          query.lastError();
+            return false;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool TextEditorModel::insertRows(int row, int count,
+                                 const QModelIndex &parent)
+{
+    if (count < 1)
+        return false;
+
+    beginInsertRows(parent, row, row + count - 1);
+    endInsertRows();
+
+    return true;
+}
+
+bool TextEditorModel::removeRows(int row, int count,
+                                 const QModelIndex &parent)
+{
+    if (count < 1)
+        return false;
+
+    beginRemoveRows(parent, row, row + count - 1);
+    endRemoveRows();
+
+    return true;
+}
+
+Qt::ItemFlags TextEditorModel::flags(const QModelIndex &index) const
+{
+    return Qt::ItemIsEditable | QAbstractTableModel::flags(index);
 }
 
 /**
@@ -189,19 +246,14 @@ bool TextEditorModel::initDb()
         return false;
     }
 
-    // Clean DB
-    QSqlQuery query;
-    query.prepare("DELETE FROM text_editors");
-    query.exec();
-
     QString query_str = "CREATE TABLE IF NOT EXISTS text_editors"
                         "("
                         "id INTEGER PRIMARY KEY";
     for (auto &cn: column_names)
-        query_str += "," + cn + " TEXT";
+        query_str +=    "," + cn + " TEXT";
     query_str +=        ")";
 
-    query.prepare(query_str);
+    QSqlQuery query(query_str);
     if (!query.exec())
     {
         qWarning() << "TextEditorModel::initDb error - " <<
@@ -212,12 +264,29 @@ bool TextEditorModel::initDb()
     return true;
 }
 
-bool TextEditorModel::insertIntoDb(const TextEditorModel::ColumnValues &columns)
+bool TextEditorModel::clearDb()
+{
+    // Remove all rows
+    if (!removeRows(0, rowCount(), QModelIndex()))
+        return false;
+
+    QSqlQuery query("DELETE FROM text_editors");
+    if (!query.exec())
+    {
+        qWarning() << "TextEditorModel::clearDb error - " <<
+                      query.lastError();
+        return false;
+    }
+
+    return true;
+}
+
+bool TextEditorModel::insertIntoDb(const ColumnValues &columns)
 {
     QString query_str = "INSERT INTO text_editors"
                         "(";
     for (auto &cn: column_names)
-        query_str += cn + ",";
+        query_str +=    cn + ",";
     query_str.chop(1);  // Remove last comma
     query_str +=        ")"
                         "VALUES(";
@@ -237,6 +306,10 @@ bool TextEditorModel::insertIntoDb(const TextEditorModel::ColumnValues &columns)
                       query.lastError().text();
         return false;
     }
+
+    // Insert one row
+    if (!insertRows(0, 1, QModelIndex()))
+        return false;
 
     return true;
 }
