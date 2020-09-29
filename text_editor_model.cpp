@@ -283,17 +283,50 @@ bool TextEditorModel::clearDb()
 
 bool TextEditorModel::insertIntoDb(const ColumnValues &columns)
 {
-    QString query_str = "INSERT INTO text_editors"
-                        "(";
-    for (auto &cn: column_names)
-        query_str +=    cn + ",";
-    query_str.chop(1);  // Remove last comma
-    query_str +=        ")"
-                        "VALUES(";
-    for (int i = 0; i < column_names.size(); i++)
-        query_str +=    "?,";
-    query_str.chop(1);  // Remove last comma
-    query_str +=        ")";
+    int id = 0;
+
+    // Check if new text editor is already in DB
+    {
+        QString query_str = "SELECT id FROM text_editors WHERE texteditor='" +
+                            columns["texteditor"] + "'";
+
+        QSqlQuery query(query_str);
+        if (!query.exec())
+        {
+            qWarning() << "TextEditorModel::insertIntoDb error - " <<
+                          query.lastError().text();
+            return false;
+        }
+
+        query.first();
+        if (query.isValid())
+            id = query.value(0).toInt();
+    }
+
+
+    QString query_str;
+    if (id)
+    {
+        query_str =         "UPDATE text_editors SET ";
+        for (auto &cn: column_names)
+            query_str +=    cn + "=?,";
+        query_str.chop(1);
+        query_str +=        " WHERE id='" + QString::number(id) + "'";
+    }
+    else
+    {
+        query_str =         "INSERT INTO text_editors"
+                            "(";
+        for (auto &cn: column_names)
+            query_str +=    cn + ",";
+        query_str.chop(1);
+        query_str +=        ")"
+                            "VALUES(";
+        for (int i = 0; i < column_names.size(); i++)
+            query_str +=    "?,";
+        query_str.chop(1);
+        query_str +=        ")";
+    }
 
     QSqlQuery query(query_str);
 
@@ -307,9 +340,16 @@ bool TextEditorModel::insertIntoDb(const ColumnValues &columns)
         return false;
     }
 
-    // Insert one row
-    if (!insertRows(0, 1, QModelIndex()))
-        return false;
+    if (id)
+    {
+        emit dataChanged(QModelIndex(), QModelIndex());
+    }
+    else
+    {
+        // If new text editor wasn't found in DB insert new row
+        if (!insertRows(0, 1, QModelIndex()))
+            return false;
+    }
 
     return true;
 }
