@@ -35,6 +35,9 @@ private:
 
     void tableContextMenu(QPoint pos);
 
+    void showMessageBox(const QString &title,
+                        const QString &msg);
+
 };
 
 #endif // MAINWINDOW_H

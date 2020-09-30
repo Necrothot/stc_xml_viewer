@@ -3,11 +3,15 @@
 #include <QFile>
 #include <QXmlStreamReader>
 
+/**
+ * @brief Reader of XML files with text editor's properties
+ *
+ * @param[in] file_name Name of XML file to read
+ */
 XmlFileReader::XmlFileReader(const QString &file_name, QObject *parent) :
     QObject(parent),
     file_name_(file_name)
 {
-
 }
 
 void XmlFileReader::readFile()

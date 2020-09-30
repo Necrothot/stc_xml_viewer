@@ -3,6 +3,11 @@
 #include <QFile>
 #include <QXmlStreamWriter>
 
+/**
+ * @brief Writer of XML files with text editor's properties
+ *
+ * @param[in] file_name Name of XML file to write
+ */
 XmlFileWriter::XmlFileWriter(const QString &file_name, QObject *parent) :
     QObject(parent),
     file_name_(file_name)

@@ -3,6 +3,12 @@
 #include <QLayout>
 #include <QFileInfo>
 
+/**
+ * @brief Dialog window for loading file information
+ *
+ * Displays progress bar, number of loaded files and
+ * loaded files status log
+ */
 FileLoadDialog::FileLoadDialog(QWidget *parent) :
     QDialog(parent),
     files_count_(0),

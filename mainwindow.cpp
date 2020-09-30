@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 
+#include <QDebug>
 #include <QCoreApplication>
 #include <QWidget>
 #include <QLayout>
@@ -10,6 +11,11 @@
 #include <QFileDialog>
 #include <QMessageBox>
 
+/**
+ * @brief Main window if application
+ *
+ * Displays table view of SQLite model with control buttons
+ */
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
@@ -28,7 +34,15 @@ MainWindow::MainWindow(QWidget *parent)
     button_layout->addWidget(quit_button);
     button_layout->addStretch(1);
 
-    text_editor_model_ = new TextEditorModel(this);
+    try
+    {
+        text_editor_model_ = new TextEditorModel(this);
+    }
+    catch (const std::runtime_error &e)
+    {
+        showMessageBox("Fatal error", e.what());
+        throw;
+    }
 
     table_view_ = new QTableView(this);
     table_view_->setModel(text_editor_model_);
@@ -41,7 +55,7 @@ MainWindow::MainWindow(QWidget *parent)
     QAction *add_row_action = new QAction("Add row", this);
     table_context_menu_->addAction(add_row_action);
     QObject::connect(add_row_action, &QAction::triggered, this, [=] () {
-        text_editor_model_->insertIntoDb(global_def::ColumnValues());
+        text_editor_model_->insertRowIntoDb(global_def::ColumnValues());
     });
 
     QAction *remove_row_action = new QAction("Remove row", this);
@@ -58,13 +72,18 @@ MainWindow::MainWindow(QWidget *parent)
                                                     "Save File",
                                                     ".",
                                                     "XML file (*.xml)");
-        if (name.isEmpty())
+
+        if (name.isEmpty() || !context_menu_index_.isValid())
             return;
 
-        if (context_menu_index_.isValid())
+        try
         {
             text_editor_model_->saveRowToFile(name,
                                               context_menu_index_.row());
+        }
+        catch (const std::runtime_error &e)
+        {
+            showMessageBox("DB error", e.what());
         }
     });
 
@@ -95,25 +114,29 @@ MainWindow::MainWindow(QWidget *parent)
                                 const QString &status) {
         QFileInfo fi(name);
 
-        QMessageBox message_box;
-        message_box.setWindowTitle("Save file");
-
         QString msg;
         if (success)
             msg = "Saved to " + fi.fileName();
         else
             msg = "Error (" + fi.fileName() + "): " + status;
-
-        message_box.setText(msg);
-        message_box.exec();
+        showMessageBox("Save file", msg);
     });
 }
 
+/**
+ * @brief Open files button callback
+ *
+ * Invokes file dialog for choosing a directory,
+ * filters out .xml files and passes them to `text_editor_model_`
+ */
 void MainWindow::openFiles()
 {
     QString path = QFileDialog::getExistingDirectory(this,
                                                      "Open XML Directory",
                                                      ".");
+    if (path.isEmpty())
+        return;
+
     QDir dir(path);
 
     QFileInfoList file_list = dir.entryInfoList();
@@ -131,23 +154,52 @@ void MainWindow::openFiles()
     file_load_dialog_->show();
 
     for (auto &f: xml_file_list)
-        text_editor_model_->readFileIntoDb(f.canonicalFilePath());
+        text_editor_model_->readRowFromFile(f.canonicalFilePath());
 }
 
+/**
+ * @brief Clear database button callback
+ */
 void MainWindow::clearDb()
 {
-    text_editor_model_->clearDb();
+    try
+    {
+        text_editor_model_->clearDb();
+    }
+    catch (const std::runtime_error &e)
+    {
+        showMessageBox("DB error", e.what());
+    }
 }
 
+/**
+ * @brief Quit application button callback
+ */
 void MainWindow::quitApp()
 {
     QCoreApplication::quit();
 }
 
+/**
+ * @brief Invoke context menu for table view
+ *
+ * Chosen model index is stored for context menu actions callbacks
+ *
+ * @param[in] pos Cursor position
+ */
 void MainWindow::tableContextMenu(QPoint pos)
 {
     context_menu_index_ = table_view_->indexAt(pos);
     table_context_menu_->popup(table_view_->viewport()->mapToGlobal(pos));
+}
+
+void MainWindow::showMessageBox(const QString &title,
+                                const QString &msg)
+{
+    QMessageBox message_box;
+    message_box.setWindowTitle(title);
+    message_box.setText(msg);
+    message_box.exec();
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)

@@ -12,6 +12,11 @@
 #include "xml_file_reader.h"
 #include "xml_file_writer.h"
 
+/**
+ * @brief Model for SQLite database of text editor's properties
+ *
+ * Ctor initializes database
+ */
 TextEditorModel::TextEditorModel(QObject *parent) :
     QAbstractTableModel(parent)
 {
@@ -20,9 +25,14 @@ TextEditorModel::TextEditorModel(QObject *parent) :
     initDb();
 }
 
-void TextEditorModel::readFileIntoDb(const QString &path)
+/**
+ * @brief Async read of XML file into database
+ *
+ * @param[in] file_name File name with absolute path
+ */
+void TextEditorModel::readRowFromFile(const QString &file_name)
 {
-    XmlFileReader *reader = new XmlFileReader(path);
+    XmlFileReader *reader = new XmlFileReader(file_name);
 
     QThread *thread = new QThread(this);
     reader->moveToThread(thread);
@@ -33,7 +43,7 @@ void TextEditorModel::readFileIntoDb(const QString &path)
                      reader, &XmlFileReader::deleteLater);
 
     QObject::connect(reader, &XmlFileReader::valuesSignal,
-                     this, &TextEditorModel::insertIntoDb);
+                     this, &TextEditorModel::insertRowIntoDb);
 
     QObject::connect(reader, &XmlFileReader::statusSignal,
                      this, &TextEditorModel::fileReadStatusSignal);
@@ -179,7 +189,8 @@ bool TextEditorModel::removeRows(int row, int count,
 
 
     {
-        QString query_str = "UPDATE OR IGNORE text_editors SET id=id-1 WHERE id > '" +
+        QString query_str = "UPDATE OR IGNORE text_editors SET "
+                            "id=id-1 WHERE id > '" +
                             QString::number(row + 1) + "'";
 
         QSqlQuery query(query_str);
@@ -201,26 +212,27 @@ Qt::ItemFlags TextEditorModel::flags(const QModelIndex &index) const
     return Qt::ItemIsEditable | QAbstractTableModel::flags(index);
 }
 
-bool TextEditorModel::initDb()
+/**
+ * @brief Initialize database
+ *
+ * Creates database (text_editors.db) if it's not already exists
+ *
+ * @exception std::runtime_error No SQLite driver
+ * @exception std::runtime_error Failed to open DB file
+ * @exception std::runtime_error SQLite query error
+ */
+void TextEditorModel::initDb()
 {
     const QString db_driver = "QSQLITE";
 
     // Check SQLite driver
     if (!QSqlDatabase::isDriverAvailable(db_driver))
-    {
-        qWarning() << "TextEditorModel::initDb error -"
-                       "No SQLite driver";
-        return false;
-    }
+        throw std::runtime_error("No SQLite driver");
 
     db_ = QSqlDatabase::addDatabase(db_driver);
     db_.setDatabaseName("text_editors.db");
     if (!db_.open())
-    {
-        qWarning() << "TextEditorModel::initDb error -"
-                       "Failed to open DB file";
-        return false;
-    }
+        throw std::runtime_error("Failed to open DB file");
 
     QString query_str = "CREATE TABLE IF NOT EXISTS text_editors"
                         "("
@@ -231,32 +243,34 @@ bool TextEditorModel::initDb()
 
     QSqlQuery query(query_str);
     if (!query.exec())
-    {
-        qWarning() << "TextEditorModel::initDb error - " <<
-                      query.lastError();
-        return false;
-    }
-
-    return true;
+        throw std::runtime_error("SQLite query error");
 }
 
-bool TextEditorModel::clearDb()
+/**
+ * @brief Clear database
+ *
+ * Removes all rows from database
+ *
+ * @exception std::runtime_error Failed to remove rows
+ */
+void TextEditorModel::clearDb()
 {
-    // Remove all rows
-    if (!removeRows(0, rowCount(), QModelIndex()))
-        return false;
+    if (!removeRows(0, rowCount()))
+        throw std::runtime_error("Failed to remove rows");
 
     QSqlQuery query("DELETE FROM text_editors");
     if (!query.exec())
-    {
-        qWarning() << "TextEditorModel::clearDb error - " <<
-                      query.lastError();
-        return false;
-    }
-
-    return true;
+        throw std::runtime_error("Failed to remove rows");
 }
 
+/**
+ * @brief Save row from database to XML file
+ *
+ * @param[in] file_name File name with absolute path
+ * @param[in] row Number of row that will be saved
+ *
+ * @exception std::runtime_error SQLite query error
+ */
 void TextEditorModel::saveRowToFile(const QString &file_name, int row)
 {
     global_def::ColumnValues column_values;
@@ -269,11 +283,7 @@ void TextEditorModel::saveRowToFile(const QString &file_name, int row)
                             QString::number(row + 1) + "'";
         QSqlQuery query(query_str);
         if (!query.exec())
-        {
-            qWarning() << "TextEditorModel::saveRowToFile error - " <<
-                          query.lastError();
-            return;
-        }
+            throw std::runtime_error("SQLite query error");
 
         query.first();
         column_values[cn] = query.value(0).toString();
@@ -299,7 +309,18 @@ void TextEditorModel::saveRowToFile(const QString &file_name, int row)
     thread->start();
 }
 
-bool TextEditorModel::insertIntoDb(const global_def::ColumnValues &columns)
+/**
+ * @brief Insert row into database
+ *
+ * Inserts new row if passed text editor in not in database,
+ * updates corresponding row otherwise
+ *
+ * @todo Switch to exceptions
+ *
+ * @param[in] columns Values that will be inserted or updated
+ * @return Status of operation
+ */
+bool TextEditorModel::insertRowIntoDb(const global_def::ColumnValues &columns)
 {
     int id = 0;
 
@@ -311,7 +332,7 @@ bool TextEditorModel::insertIntoDb(const global_def::ColumnValues &columns)
         QSqlQuery query(query_str);
         if (!query.exec())
         {
-            qWarning() << "TextEditorModel::insertIntoDb error - " <<
+            qWarning() << "TextEditorModel::insertRowIntoDb error - " <<
                           query.lastError().text();
             return false;
         }
@@ -353,7 +374,7 @@ bool TextEditorModel::insertIntoDb(const global_def::ColumnValues &columns)
 
     if (!query.exec())
     {
-        qWarning() << "TextEditorModel::insertIntoDb error - " <<
+        qWarning() << "TextEditorModel::insertRowIntoDb error - " <<
                       query.lastError().text();
         return false;
     }

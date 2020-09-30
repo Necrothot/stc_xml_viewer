@@ -12,9 +12,9 @@ class TextEditorModel : public QAbstractTableModel
 public:
     TextEditorModel(QObject *parent = nullptr);
 
-    void readFileIntoDb(const QString &path);
-    bool insertIntoDb(const global_def::ColumnValues &columns);
-    bool clearDb();
+    void clearDb();
+    bool insertRowIntoDb(const global_def::ColumnValues &columns);
+    void readRowFromFile(const QString &file_name);
     void saveRowToFile(const QString &file_name, int row);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -38,7 +38,7 @@ private:
 
     QSqlDatabase db_;
 
-    bool initDb();
+    void initDb();
 
 signals:
     void fileReadStatusSignal(bool success, const QString &name,
