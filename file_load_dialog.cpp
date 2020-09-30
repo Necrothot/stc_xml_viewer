@@ -28,6 +28,7 @@ void FileLoadDialog::reset()
 {
     setProgress(0);
     text_edit->clear();
+    showing_errors_flag = false;
 }
 
 void FileLoadDialog::setFilesCount(int count)

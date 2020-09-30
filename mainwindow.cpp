@@ -7,6 +7,7 @@
 #include <QTableView>
 #include <QDir>
 #include <QFileInfoList>
+#include <QFileDialog>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -56,8 +57,9 @@ MainWindow::MainWindow(QWidget *parent)
 
 void MainWindow::openFiles()
 {
-    // TODO: let user select desired folder
-    QString path = QCoreApplication::applicationDirPath() + "/TestFolder";
+    QString path = QFileDialog::getExistingDirectory(this,
+                                                     tr("Open XML Directory"),
+                                                     ".");
     QDir dir(path);
 
     QFileInfoList file_list = dir.entryInfoList();
@@ -71,7 +73,13 @@ void MainWindow::openFiles()
     }
 
     file_load_dialog->reset();
-    file_load_dialog->setFilesCount(xml_file_list.size());
+
+    int file_count = xml_file_list.size();
+    if (file_count)
+        file_load_dialog->setFilesCount(file_count);
+    else
+        file_load_dialog->addErrorString("XML files not found");
+
     file_load_dialog->show();
 
     for (auto &f: xml_file_list)
