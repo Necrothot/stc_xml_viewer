@@ -31,12 +31,17 @@ void TextEditorModel::readFileIntoDb(const QString &path)
 
     QObject::connect(reader, &XmlFileReader::valuesSignal,
                      this, &TextEditorModel::insertIntoDb);
-    QObject::connect(reader, &XmlFileReader::errorSignal,
-                     this, &TextEditorModel::fileReadSignal);
-    QObject::connect(reader, &XmlFileReader::progressSignal,
-                     this, &TextEditorModel::fileProgressSignal);
-    QObject::connect(reader, &XmlFileReader::valuesSignal,
+
+//    QObject::connect(reader, &XmlFileReader::progressSignal,
+//                     this, &TextEditorModel::fileProgressSignal);
+
+    QObject::connect(reader, &XmlFileReader::statusSignal,
+                     this, &TextEditorModel::fileReadStatusSignal);
+
+    QObject::connect(reader, &XmlFileReader::statusSignal,
                      thread, &QThread::quit);
+//    QObject::connect(reader, &XmlFileReader::valuesSignal,
+//                     thread, &QThread::quit);
 
     thread->start();
 }

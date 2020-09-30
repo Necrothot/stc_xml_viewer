@@ -20,10 +20,10 @@ protected:
 private:
     Q_OBJECT
 
-    QTableView *table_view;
-    TextEditorModel *text_editor_model;
+    QTableView *table_view_;
+    TextEditorModel *text_editor_model_;
 
-    FileLoadDialog *file_load_dialog;
+    FileLoadDialog *file_load_dialog_;
 
     void openFiles();
     void clearDb();

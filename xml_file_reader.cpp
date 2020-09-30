@@ -15,8 +15,7 @@ void XmlFileReader::readFile()
     QFile xml_file(file_info_.canonicalFilePath());
     if (!xml_file.open(QFile::ReadOnly | QFile::Text))
     {
-        emit errorSignal(file_info_.fileName() + ": Failed to open XML file");
-        emit progressSignal();
+        emit statusSignal(false, file_info_.fileName(), "Failed to open XML file");
         return;
     }
 
@@ -28,8 +27,7 @@ void XmlFileReader::readFile()
     {
         if (xml_reader.name() != "root")
         {
-            emit errorSignal(file_info_.fileName() + ": No root element");
-            emit progressSignal();
+            emit statusSignal(false, file_info_.fileName(), "No root element");
             return;
         }
 
@@ -46,10 +44,13 @@ void XmlFileReader::readFile()
         }
 
         if (xml_reader.hasError())
-            emit errorSignal(file_info_.fileName() + ": " +
-                             xml_reader.errorString());
+        {
+            emit statusSignal(false, file_info_.fileName(),
+                              xml_reader.errorString());
+            return;
+        }
     }
 
     emit valuesSignal(column_values);
-    emit progressSignal();
+    emit statusSignal(true, file_info_.fileName());
 }

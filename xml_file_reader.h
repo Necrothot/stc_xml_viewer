@@ -21,8 +21,9 @@ private:
 
 signals:
     void valuesSignal(const global_def::ColumnValues &values);
-    void errorSignal(const QString &error);
-    void progressSignal();
+    void statusSignal(bool success,
+                      const QString &name,
+                      const QString &status = QString());
 
 };
 

@@ -42,7 +42,8 @@ private:
     bool insertIntoDb(const global_def::ColumnValues &columns);
 
 signals:
-    void fileReadSignal(const QString &error);
+    void fileReadStatusSignal(bool success, const QString &name,
+                              const QString &status);
     void fileProgressSignal();
 
 };

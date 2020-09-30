@@ -27,20 +27,20 @@ MainWindow::MainWindow(QWidget *parent)
     button_layout->addWidget(quit_button);
     button_layout->addStretch(1);
 
-    text_editor_model = new TextEditorModel(this);
+    text_editor_model_ = new TextEditorModel(this);
 
-    table_view = new QTableView(this);
-    table_view->setModel(text_editor_model);
+    table_view_ = new QTableView(this);
+    table_view_->setModel(text_editor_model_);
 
     QVBoxLayout *main_layout = new QVBoxLayout;
     main_layout->addLayout(button_layout);
-    main_layout->addWidget(table_view);
+    main_layout->addWidget(table_view_);
 
     QWidget *main_widget = new QWidget(this);
     main_widget->setLayout(main_layout);
     setCentralWidget(main_widget);
 
-    file_load_dialog = new FileLoadDialog(this);
+    file_load_dialog_ = new FileLoadDialog(this);
 
     QObject::connect(open_button, &QPushButton::clicked,
                      this, &MainWindow::openFiles);
@@ -49,10 +49,8 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(quit_button, &QPushButton::clicked,
                      this, &MainWindow::quitApp);
 
-    QObject::connect(text_editor_model, &TextEditorModel::fileReadSignal,
-                     file_load_dialog, &FileLoadDialog::addErrorString);
-    QObject::connect(text_editor_model, &TextEditorModel::fileProgressSignal,
-                     file_load_dialog, &FileLoadDialog::incProgress);
+    QObject::connect(text_editor_model_, &TextEditorModel::fileReadStatusSignal,
+                     file_load_dialog_, &FileLoadDialog::setFileReadStatus);
 }
 
 void MainWindow::openFiles()
@@ -72,23 +70,17 @@ void MainWindow::openFiles()
             xml_file_list.push_back(f);
     }
 
-    file_load_dialog->reset();
-
-    int file_count = xml_file_list.size();
-    if (file_count)
-        file_load_dialog->setFilesCount(file_count);
-    else
-        file_load_dialog->addErrorString("XML files not found");
-
-    file_load_dialog->show();
+    file_load_dialog_->reset();
+    file_load_dialog_->setFilesCount(xml_file_list.size());
+    file_load_dialog_->show();
 
     for (auto &f: xml_file_list)
-        text_editor_model->readFileIntoDb(f.canonicalFilePath());
+        text_editor_model_->readFileIntoDb(f.canonicalFilePath());
 }
 
 void MainWindow::clearDb()
 {
-    text_editor_model->clearDb();
+    text_editor_model_->clearDb();
 }
 
 void MainWindow::quitApp()

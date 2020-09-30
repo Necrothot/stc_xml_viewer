@@ -4,6 +4,7 @@
 #include <QDialog>
 #include <QProgressBar>
 #include <QTextEdit>
+#include <QLabel>
 
 class FileLoadDialog : public QDialog
 {
@@ -16,14 +17,17 @@ public:
     void setProgress(int value);
     void incProgress();
 
-    void addErrorString(const QString &error);
+    void setFileReadStatus(bool success, const QString &name,
+                           const QString &status);
 
 private:
-    int current_progress;
-    bool showing_errors_flag;
+    int files_count_;
+    int files_read_;
+    int current_progress_;
 
-    QProgressBar *progress_bar;
-    QTextEdit *text_edit;
+    QProgressBar *progress_bar_;
+    QTextEdit *text_edit_;
+    QLabel *status_label_;
 
 };
 
