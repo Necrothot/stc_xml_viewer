@@ -6,7 +6,6 @@
 #include <QMap>
 
 #include "global_definitions.h"
-#include "xml_file_reader.h"
 
 class TextEditorModel : public QAbstractTableModel
 {
@@ -16,6 +15,7 @@ public:
     void readFileIntoDb(const QString &path);
     bool insertIntoDb(const global_def::ColumnValues &columns);
     bool clearDb();
+    void saveRowToFile(const QString &file_name, int row);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -43,6 +43,8 @@ private:
 signals:
     void fileReadStatusSignal(bool success, const QString &name,
                               const QString &status);
+    void fileWriteStatusSignal(bool success, const QString &name,
+                               const QString &status);
     void fileProgressSignal();
 
 };

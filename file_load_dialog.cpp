@@ -1,6 +1,7 @@
 #include "file_load_dialog.h"
 
 #include <QLayout>
+#include <QFileInfo>
 
 FileLoadDialog::FileLoadDialog(QWidget *parent) :
     QDialog(parent),
@@ -63,6 +64,8 @@ void FileLoadDialog::setFileReadStatus(bool success, const QString &name,
 {
     incProgress();
 
+    QFileInfo fi(name);
+
     if (success)
     {
         files_read_++;
@@ -70,10 +73,10 @@ void FileLoadDialog::setFileReadStatus(bool success, const QString &name,
                          "/" + QString::number(files_count_);
         status_label_->setText(status);
 
-        text_edit_->append(name + ": done");
+        text_edit_->append(fi.fileName() + ": done");
     }
     else
     {
-        text_edit_->append(name + ": error - " + status);
+        text_edit_->append(fi.fileName() + ": error - " + status);
     }
 }

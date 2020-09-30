@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QFileInfoList>
 #include <QFileDialog>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -46,7 +47,25 @@ MainWindow::MainWindow(QWidget *parent)
     QAction *remove_row_action = new QAction("Remove row", this);
     table_context_menu_->addAction(remove_row_action);
     QObject::connect(remove_row_action, &QAction::triggered, this, [=] () {
-        text_editor_model_->removeRow(context_menu_index_.row());
+        if (context_menu_index_.isValid())
+            text_editor_model_->removeRow(context_menu_index_.row());
+    });
+
+    QAction *save_to_file_action = new QAction("Save to file", this);
+    table_context_menu_->addAction(save_to_file_action);
+    QObject::connect(save_to_file_action, &QAction::triggered, this, [=] () {
+        QString name = QFileDialog::getSaveFileName(this,
+                                                    "Save File",
+                                                    ".",
+                                                    "XML file (*.xml)");
+        if (name.isEmpty())
+            return;
+
+        if (context_menu_index_.isValid())
+        {
+            text_editor_model_->saveRowToFile(name,
+                                              context_menu_index_.row());
+        }
     });
 
 
@@ -70,12 +89,30 @@ MainWindow::MainWindow(QWidget *parent)
 
     QObject::connect(text_editor_model_, &TextEditorModel::fileReadStatusSignal,
                      file_load_dialog_, &FileLoadDialog::setFileReadStatus);
+
+    QObject::connect(text_editor_model_, &TextEditorModel::fileWriteStatusSignal,
+                     this, [=] (bool success, const QString &name,
+                                const QString &status) {
+        QFileInfo fi(name);
+
+        QMessageBox message_box;
+        message_box.setWindowTitle("Save file");
+
+        QString msg;
+        if (success)
+            msg = "Saved to " + fi.fileName();
+        else
+            msg = "Error (" + fi.fileName() + "): " + status;
+
+        message_box.setText(msg);
+        message_box.exec();
+    });
 }
 
 void MainWindow::openFiles()
 {
     QString path = QFileDialog::getExistingDirectory(this,
-                                                     tr("Open XML Directory"),
+                                                     "Open XML Directory",
                                                      ".");
     QDir dir(path);
 

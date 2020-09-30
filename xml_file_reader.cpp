@@ -3,19 +3,20 @@
 #include <QFile>
 #include <QXmlStreamReader>
 
-XmlFileReader::XmlFileReader(const QFileInfo &file_info, QObject *parent) :
+XmlFileReader::XmlFileReader(const QString &file_name, QObject *parent) :
     QObject(parent),
-    file_info_(file_info)
+    file_name_(file_name)
 {
 
 }
 
 void XmlFileReader::readFile()
 {
-    QFile xml_file(file_info_.canonicalFilePath());
+    QFile xml_file(file_name_);
     if (!xml_file.open(QFile::ReadOnly | QFile::Text))
     {
-        emit statusSignal(false, file_info_.fileName(), "Failed to open XML file");
+        emit statusSignal(false, file_name_,
+                          "Failed to open XML file");
         return;
     }
 
@@ -27,7 +28,8 @@ void XmlFileReader::readFile()
     {
         if (xml_reader.name() != "root")
         {
-            emit statusSignal(false, file_info_.fileName(), "No root element");
+            emit statusSignal(false, file_name_,
+                              "No root element");
             return;
         }
 
@@ -45,12 +47,12 @@ void XmlFileReader::readFile()
 
         if (xml_reader.hasError())
         {
-            emit statusSignal(false, file_info_.fileName(),
+            emit statusSignal(false, file_name_,
                               xml_reader.errorString());
             return;
         }
     }
 
     emit valuesSignal(column_values);
-    emit statusSignal(true, file_info_.fileName());
+    emit statusSignal(true, file_name_);
 }

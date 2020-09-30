@@ -9,6 +9,9 @@
 #include <QSqlError>
 #include <QThread>
 
+#include "xml_file_reader.h"
+#include "xml_file_writer.h"
+
 TextEditorModel::TextEditorModel(QObject *parent) :
     QAbstractTableModel(parent)
 {
@@ -252,6 +255,48 @@ bool TextEditorModel::clearDb()
     }
 
     return true;
+}
+
+void TextEditorModel::saveRowToFile(const QString &file_name, int row)
+{
+    global_def::ColumnValues column_values;
+
+    for (auto &cn: global_def::column_names)
+    {
+        QString query_str = "SELECT " +
+                            cn +
+                            " FROM text_editors WHERE id='" +
+                            QString::number(row + 1) + "'";
+        QSqlQuery query(query_str);
+        if (!query.exec())
+        {
+            qWarning() << "TextEditorModel::saveRowToFile error - " <<
+                          query.lastError();
+            return;
+        }
+
+        query.first();
+        column_values[cn] = query.value(0).toString();
+    }
+
+    XmlFileWriter *writer = new XmlFileWriter(file_name);
+    writer->setData(column_values);
+
+    QThread *thread = new QThread(this);
+    writer->moveToThread(thread);
+
+    QObject::connect(thread, &QThread::started,
+                     writer, &XmlFileWriter::writeFile);
+    QObject::connect(thread, &QThread::finished,
+                     writer, &XmlFileWriter::deleteLater);
+
+    QObject::connect(writer, &XmlFileWriter::statusSignal,
+                     this, &TextEditorModel::fileWriteStatusSignal);
+
+    QObject::connect(writer, &XmlFileWriter::statusSignal,
+                     thread, &QThread::quit);
+
+    thread->start();
 }
 
 bool TextEditorModel::insertIntoDb(const global_def::ColumnValues &columns)

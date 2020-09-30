@@ -29,14 +29,16 @@ SOURCES += \
         main.cpp \
         mainwindow.cpp \
         text_editor_model.cpp \
-        xml_file_reader.cpp
+        xml_file_reader.cpp \
+        xml_file_writer.cpp
 
 HEADERS += \
         file_load_dialog.h \
         global_definitions.h \
         mainwindow.h \
         text_editor_model.h \
-        xml_file_reader.h
+        xml_file_reader.h \
+        xml_file_writer.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
