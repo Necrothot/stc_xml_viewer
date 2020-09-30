@@ -6,6 +6,7 @@
 #include <QTableView>
 
 #include "text_editor_model.h"
+#include "file_load_dialog.h"
 
 class MainWindow : public QMainWindow
 {
@@ -21,6 +22,8 @@ private:
 
     QTableView *table_view;
     TextEditorModel *text_editor_model;
+
+    FileLoadDialog *file_load_dialog;
 
     void openFiles();
     void clearDb();

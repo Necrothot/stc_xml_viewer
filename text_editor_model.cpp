@@ -7,46 +7,38 @@
 #include <QXmlStreamReader>
 #include <QSqlQuery>
 #include <QSqlError>
-
-const QVector<QString> column_names = {
-    "texteditor",
-    "fileformats",
-    "encoding",
-    "hasintellisense",
-    "hasplugins",
-    "cancompile"
-};
+#include <QThread>
 
 TextEditorModel::TextEditorModel(QObject *parent) :
     QAbstractTableModel(parent)
 {
+    qRegisterMetaType<global_def::ColumnValues>("global_def::ColumnValues");
+
     initDb();
 }
 
-/**
- * @brief Read all XML files from given directory
- *
- * @param[in] path Path to directory
- */
-void TextEditorModel::readFilesFromDir(const QString &path)
+void TextEditorModel::readFileIntoDb(const QString &path)
 {
-    try
-    {
-        QDir dir(path);
+    XmlFileReader *reader = new XmlFileReader(path);
 
-        QFileInfoList info_list = dir.entryInfoList();
-        for (auto &i : info_list)
-        {
-            if (i.completeSuffix() == "xml")
-                insertIntoDb(readXmlFile(i.canonicalFilePath()));
-        }
+    QThread *thread = new QThread(this);
+    reader->moveToThread(thread);
 
-    }
-    catch (const std::runtime_error &e)
-    {
-        qWarning() << "TextEditorModel::readFilesFromDir error - " <<
-                      e.what();
-    }
+    QObject::connect(thread, &QThread::started,
+                     reader, &XmlFileReader::readFile);
+    QObject::connect(thread, &QThread::finished,
+                     reader, &XmlFileReader::deleteLater);
+
+    QObject::connect(reader, &XmlFileReader::valuesSignal,
+                     this, &TextEditorModel::insertIntoDb);
+    QObject::connect(reader, &XmlFileReader::errorSignal,
+                     this, &TextEditorModel::fileReadSignal);
+    QObject::connect(reader, &XmlFileReader::progressSignal,
+                     this, &TextEditorModel::fileProgressSignal);
+    QObject::connect(reader, &XmlFileReader::valuesSignal,
+                     thread, &QThread::quit);
+
+    thread->start();
 }
 
 int TextEditorModel::rowCount(const QModelIndex &parent) const
@@ -67,7 +59,7 @@ int TextEditorModel::rowCount(const QModelIndex &parent) const
 int TextEditorModel::columnCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
-    return column_names.size();
+    return global_def::column_names.size();
 }
 
 QVariant TextEditorModel::headerData(int section,
@@ -104,10 +96,10 @@ QVariant TextEditorModel::data(const QModelIndex &index, int role) const
     QVariant value;
 
     if (role == Qt::DisplayRole &&
-        index.column() < column_names.size())
+        index.column() < global_def::column_names.size())
     {
         QSqlQuery query("SELECT " +
-                        column_names[index.column()] + " " +
+                        global_def::column_names[index.column()] + " " +
                         "FROM text_editors "
                         "WHERE id=" +
                         QString::number(index.row() + 1));
@@ -132,7 +124,7 @@ bool TextEditorModel::setData(const QModelIndex &index,
             return false;
 
         QString query_str = "UPDATE text_editors SET " +
-                            column_names[index.column()] + "='" +
+                            global_def::column_names[index.column()] + "='" +
                             value.toString() + "' "
                             "WHERE id=" +
                             QString::number(index.row() + 1);
@@ -180,49 +172,6 @@ Qt::ItemFlags TextEditorModel::flags(const QModelIndex &index) const
     return Qt::ItemIsEditable | QAbstractTableModel::flags(index);
 }
 
-/**
- * @brief Read XML file
- *
- * @param[in] name Name of XML file
- * @exception std::runtime_error Failed to open XML file
- */
-TextEditorModel::ColumnValues TextEditorModel::readXmlFile(const QString &name) const
-{
-    QFile xml_file(name);
-    if (!xml_file.open(QFile::ReadOnly | QFile::Text))
-        throw std::runtime_error("Failed to open XML file");
-
-    ColumnValues column_values;
-
-    QXmlStreamReader xml_reader;
-    xml_reader.setDevice(&xml_file);
-    if (xml_reader.readNextStartElement())
-    {
-        if (xml_reader.name() != "root")
-            throw std::runtime_error("No root element");
-
-        while (xml_reader.readNextStartElement())
-        {
-            for (auto &cn: column_names)
-            {
-                if (xml_reader.name() == cn)
-                {
-                    column_values[cn] = xml_reader.readElementText();
-                    break;
-                }
-            }
-        }
-
-        if (xml_reader.hasError())
-        {
-            qDebug() << "TextEditorModel::readXmlFile error - " <<
-                        xml_reader.errorString();
-        }
-    }
-
-    return column_values;
-}
-
 bool TextEditorModel::initDb()
 {
     const QString db_driver = "QSQLITE";
@@ -236,7 +185,6 @@ bool TextEditorModel::initDb()
     }
 
     db_ = QSqlDatabase::addDatabase(db_driver);
-//    db_.setDatabaseName(":memory:");
     db_.setDatabaseName("text_editors.db");
     if (!db_.open())
     {
@@ -249,7 +197,7 @@ bool TextEditorModel::initDb()
     QString query_str = "CREATE TABLE IF NOT EXISTS text_editors"
                         "("
                         "id INTEGER PRIMARY KEY";
-    for (auto &cn: column_names)
+    for (auto &cn: global_def::column_names)
         query_str +=    "," + cn + " TEXT";
     query_str +=        ")";
 
@@ -281,7 +229,7 @@ bool TextEditorModel::clearDb()
     return true;
 }
 
-bool TextEditorModel::insertIntoDb(const ColumnValues &columns)
+bool TextEditorModel::insertIntoDb(const global_def::ColumnValues &columns)
 {
     int id = 0;
 
@@ -308,7 +256,7 @@ bool TextEditorModel::insertIntoDb(const ColumnValues &columns)
     if (id)
     {
         query_str =         "UPDATE text_editors SET ";
-        for (auto &cn: column_names)
+        for (auto &cn: global_def::column_names)
             query_str +=    cn + "=?,";
         query_str.chop(1);
         query_str +=        " WHERE id='" + QString::number(id) + "'";
@@ -317,12 +265,12 @@ bool TextEditorModel::insertIntoDb(const ColumnValues &columns)
     {
         query_str =         "INSERT INTO text_editors"
                             "(";
-        for (auto &cn: column_names)
+        for (auto &cn: global_def::column_names)
             query_str +=    cn + ",";
         query_str.chop(1);
         query_str +=        ")"
                             "VALUES(";
-        for (int i = 0; i < column_names.size(); i++)
+        for (int i = 0; i < global_def::column_names.size(); i++)
             query_str +=    "?,";
         query_str.chop(1);
         query_str +=        ")";
@@ -330,7 +278,7 @@ bool TextEditorModel::insertIntoDb(const ColumnValues &columns)
 
     QSqlQuery query(query_str);
 
-    for (auto &cn: column_names)
+    for (auto &cn: global_def::column_names)
         query.addBindValue(columns[cn]);
 
     if (!query.exec())

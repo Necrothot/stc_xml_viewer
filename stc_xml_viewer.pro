@@ -25,13 +25,18 @@ DEFINES += QT_DEPRECATED_WARNINGS
 CONFIG += c++14
 
 SOURCES += \
+        file_load_dialog.cpp \
         main.cpp \
         mainwindow.cpp \
-        text_editor_model.cpp
+        text_editor_model.cpp \
+        xml_file_reader.cpp
 
 HEADERS += \
+        file_load_dialog.h \
+        global_definitions.h \
         mainwindow.h \
-        text_editor_model.h
+        text_editor_model.h \
+        xml_file_reader.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

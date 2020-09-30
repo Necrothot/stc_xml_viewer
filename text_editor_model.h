@@ -5,12 +5,15 @@
 #include <QSqlDatabase>
 #include <QMap>
 
+#include "global_definitions.h"
+#include "xml_file_reader.h"
+
 class TextEditorModel : public QAbstractTableModel
 {
 public:
     TextEditorModel(QObject *parent = nullptr);
 
-    void readFilesFromDir(const QString &path);
+    void readFileIntoDb(const QString &path);
     bool clearDb();
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -33,14 +36,14 @@ public:
 private:
     Q_OBJECT
 
-    using ColumnValues = QMap<QString, QString>;
-
     QSqlDatabase db_;
 
-    ColumnValues readXmlFile(const QString &name) const;
-
     bool initDb();
-    bool insertIntoDb(const ColumnValues &columns);
+    bool insertIntoDb(const global_def::ColumnValues &columns);
+
+signals:
+    void fileReadSignal(const QString &error);
+    void fileProgressSignal();
 
 };
 

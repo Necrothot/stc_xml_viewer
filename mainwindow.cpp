@@ -1,11 +1,12 @@
 #include "mainwindow.h"
 
-#include <QDebug>
 #include <QCoreApplication>
 #include <QWidget>
 #include <QLayout>
 #include <QPushButton>
 #include <QTableView>
+#include <QDir>
+#include <QFileInfoList>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -38,19 +39,43 @@ MainWindow::MainWindow(QWidget *parent)
     main_widget->setLayout(main_layout);
     setCentralWidget(main_widget);
 
+    file_load_dialog = new FileLoadDialog(this);
+
     QObject::connect(open_button, &QPushButton::clicked,
                      this, &MainWindow::openFiles);
     QObject::connect(clear_db_button, &QPushButton::clicked,
                      this, &MainWindow::clearDb);
     QObject::connect(quit_button, &QPushButton::clicked,
                      this, &MainWindow::quitApp);
+
+    QObject::connect(text_editor_model, &TextEditorModel::fileReadSignal,
+                     file_load_dialog, &FileLoadDialog::addErrorString);
+    QObject::connect(text_editor_model, &TextEditorModel::fileProgressSignal,
+                     file_load_dialog, &FileLoadDialog::incProgress);
 }
 
 void MainWindow::openFiles()
 {
     // TODO: let user select desired folder
-    text_editor_model->readFilesFromDir(QCoreApplication::applicationDirPath() +
-                                        "/TestFolder");
+    QString path = QCoreApplication::applicationDirPath() + "/TestFolder";
+    QDir dir(path);
+
+    QFileInfoList file_list = dir.entryInfoList();
+
+    // Get XML files list
+    QFileInfoList xml_file_list;
+    for (auto &f: file_list)
+    {
+        if (f.completeSuffix() == "xml")
+            xml_file_list.push_back(f);
+    }
+
+    file_load_dialog->reset();
+    file_load_dialog->setFilesCount(xml_file_list.size());
+    file_load_dialog->show();
+
+    for (auto &f: xml_file_list)
+        text_editor_model->readFileIntoDb(f.canonicalFilePath());
 }
 
 void MainWindow::clearDb()
