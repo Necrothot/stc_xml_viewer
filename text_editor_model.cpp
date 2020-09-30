@@ -158,10 +158,35 @@ bool TextEditorModel::insertRows(int row, int count,
 bool TextEditorModel::removeRows(int row, int count,
                                  const QModelIndex &parent)
 {
-    if (count < 1)
+    if (row < 0 || count < 1)
         return false;
 
     beginRemoveRows(parent, row, row + count - 1);
+
+    QString query_str = "DELETE FROM text_editors WHERE id='" +
+                        QString::number(row + 1) + "'";
+
+    QSqlQuery query(query_str);
+    if (!query.exec())
+    {
+        qWarning() << "TextEditorModel::removeRows error - " <<
+                      query.lastError().text();
+        return false;
+    }
+
+
+    {
+        QString query_str = "UPDATE OR IGNORE text_editors SET id=id-1 WHERE id > '" +
+                            QString::number(row + 1) + "'";
+
+        QSqlQuery query(query_str);
+        if (!query.exec())
+        {
+            qWarning() << "TextEditorModel::removeRows error - " <<
+                          query.lastError().text();
+            return false;
+        }
+    }
 
     endRemoveRows();
 

@@ -9,11 +9,6 @@
 #include <QFileInfoList>
 #include <QFileDialog>
 
-void MainWindow::tableContextMenu(QPoint pos)
-{
-    table_context_menu_->popup(table_view_->viewport()->mapToGlobal(pos));
-}
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
@@ -47,6 +42,13 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(add_row_action, &QAction::triggered, this, [=] () {
         text_editor_model_->insertIntoDb(global_def::ColumnValues());
     });
+
+    QAction *remove_row_action = new QAction("Remove row", this);
+    table_context_menu_->addAction(remove_row_action);
+    QObject::connect(remove_row_action, &QAction::triggered, this, [=] () {
+        text_editor_model_->removeRow(context_menu_index_.row());
+    });
+
 
 
     QVBoxLayout *main_layout = new QVBoxLayout;
@@ -103,6 +105,12 @@ void MainWindow::clearDb()
 void MainWindow::quitApp()
 {
     QCoreApplication::quit();
+}
+
+void MainWindow::tableContextMenu(QPoint pos)
+{
+    context_menu_index_ = table_view_->indexAt(pos);
+    table_context_menu_->popup(table_view_->viewport()->mapToGlobal(pos));
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)

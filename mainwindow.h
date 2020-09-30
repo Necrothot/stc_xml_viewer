@@ -25,6 +25,7 @@ private:
     TextEditorModel *text_editor_model_;
 
     QMenu *table_context_menu_;
+    QModelIndex context_menu_index_;
 
     FileLoadDialog *file_load_dialog_;
 
