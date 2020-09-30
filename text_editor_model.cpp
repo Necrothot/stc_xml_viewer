@@ -32,16 +32,11 @@ void TextEditorModel::readFileIntoDb(const QString &path)
     QObject::connect(reader, &XmlFileReader::valuesSignal,
                      this, &TextEditorModel::insertIntoDb);
 
-//    QObject::connect(reader, &XmlFileReader::progressSignal,
-//                     this, &TextEditorModel::fileProgressSignal);
-
     QObject::connect(reader, &XmlFileReader::statusSignal,
                      this, &TextEditorModel::fileReadStatusSignal);
 
     QObject::connect(reader, &XmlFileReader::statusSignal,
                      thread, &QThread::quit);
-//    QObject::connect(reader, &XmlFileReader::valuesSignal,
-//                     thread, &QThread::quit);
 
     thread->start();
 }
@@ -167,6 +162,7 @@ bool TextEditorModel::removeRows(int row, int count,
         return false;
 
     beginRemoveRows(parent, row, row + count - 1);
+
     endRemoveRows();
 
     return true;
@@ -184,7 +180,7 @@ bool TextEditorModel::initDb()
     // Check SQLite driver
     if (!QSqlDatabase::isDriverAvailable(db_driver))
     {
-        qCritical() << "TextEditorModel::initDb error -"
+        qWarning() << "TextEditorModel::initDb error -"
                        "No SQLite driver";
         return false;
     }
@@ -193,8 +189,7 @@ bool TextEditorModel::initDb()
     db_.setDatabaseName("text_editors.db");
     if (!db_.open())
     {
-//        throw std::runtime_error("Failed to open database");
-        qCritical() << "TextEditorModel::initDb error -"
+        qWarning() << "TextEditorModel::initDb error -"
                        "Failed to open DB file";
         return false;
     }

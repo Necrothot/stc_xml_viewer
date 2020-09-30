@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QKeyEvent>
 #include <QTableView>
+#include <QMenu>
 
 #include "text_editor_model.h"
 #include "file_load_dialog.h"
@@ -23,11 +24,15 @@ private:
     QTableView *table_view_;
     TextEditorModel *text_editor_model_;
 
+    QMenu *table_context_menu_;
+
     FileLoadDialog *file_load_dialog_;
 
     void openFiles();
     void clearDb();
     void quitApp();
+
+    void tableContextMenu(QPoint pos);
 
 };
 

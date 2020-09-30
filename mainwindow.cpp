@@ -9,6 +9,11 @@
 #include <QFileInfoList>
 #include <QFileDialog>
 
+void MainWindow::tableContextMenu(QPoint pos)
+{
+    table_context_menu_->popup(table_view_->viewport()->mapToGlobal(pos));
+}
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
@@ -31,6 +36,18 @@ MainWindow::MainWindow(QWidget *parent)
 
     table_view_ = new QTableView(this);
     table_view_->setModel(text_editor_model_);
+    table_view_->setContextMenuPolicy(Qt::CustomContextMenu);
+    QObject::connect(table_view_, &QTableView::customContextMenuRequested,
+                     this, &MainWindow::tableContextMenu);
+
+    table_context_menu_ = new QMenu(this);
+
+    QAction *add_row_action = new QAction("Add row", this);
+    table_context_menu_->addAction(add_row_action);
+    QObject::connect(add_row_action, &QAction::triggered, this, [=] () {
+        text_editor_model_->insertIntoDb(global_def::ColumnValues());
+    });
+
 
     QVBoxLayout *main_layout = new QVBoxLayout;
     main_layout->addLayout(button_layout);

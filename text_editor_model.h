@@ -14,6 +14,7 @@ public:
     TextEditorModel(QObject *parent = nullptr);
 
     void readFileIntoDb(const QString &path);
+    bool insertIntoDb(const global_def::ColumnValues &columns);
     bool clearDb();
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -32,14 +33,12 @@ public:
                     const QModelIndex &parent = QModelIndex()) override;
     Qt::ItemFlags flags(const QModelIndex &index) const override;
 
-
 private:
     Q_OBJECT
 
     QSqlDatabase db_;
 
     bool initDb();
-    bool insertIntoDb(const global_def::ColumnValues &columns);
 
 signals:
     void fileReadStatusSignal(bool success, const QString &name,
